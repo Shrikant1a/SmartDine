@@ -1,0 +1,117 @@
+name: SmartDine CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target deployment environment
+        required: true
+        default: production
+        type: choice
+        options:
+          - preview
+          - production
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pre-deploy-verify:
+    name: Pre-Deploy Quality & Build Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder-ci.supabase.co' }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ vars.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder.ci' }}
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000' }}
+      - run: npm run verify:secrets
+
+  deploy-supabase-migrations:
+    name: Apply Supabase Migrations
+    needs: pre-deploy-verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' && secrets.SUPABASE_PROJECT_REF != '' && secrets.SUPABASE_DB_PASSWORD != '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - name: Link & push migrations to Supabase
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}" --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --include-all
+
+  deploy-vercel:
+    name: Deploy Next.js to Vercel
+    needs: [pre-deploy-verify, deploy-supabase-migrations]
+    if: ${{ !failure() && secrets.VERCEL_TOKEN != '' && secrets.VERCEL_ORG_ID != '' && secrets.VERCEL_PROJECT_ID != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      deployment_url: ${{ steps.vercel_deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel environment configuration
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "preview" ]; then
+            vercel pull --yes --environment=preview --token="$VERCEL_TOKEN"
+          else
+            vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+          fi
+
+      - name: Build & deploy to Vercel
+        id: vercel_deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ "${{ github.event.inputs.environment }}" = "preview" ]; then
+            vercel build --token="$VERCEL_TOKEN"
+            DEPLOY_URL=$(vercel deploy --prebuilt --token="$VERCEL_TOKEN")
+          else
+            vercel build --prod --token="$VERCEL_TOKEN"
+            DEPLOY_URL=$(vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN")
+          fi
+          echo "url=$DEPLOY_URL" >> "$GITHUB_OUTPUT"
+          echo "Deployed to: $DEPLOY_URL"
+
+      - name: Post-deploy health & security smoke check
+        run: |
+          DEPLOY_URL="${{ steps.vercel_deploy.outputs.url }}"
+          curl -fsS "$DEPLOY_URL/api/health" || true
+          STATUS_ADMIN=$(curl -s -o /dev/null -w "%{http_code}" "$DEPLOY_URL/admin")
+          if [ "$STATUS_ADMIN" != "307" ] && [ "$STATUS_ADMIN" != "302" ]; then
+            echo "ERROR: Unauthenticated /admin returned $STATUS_ADMIN"
+            exit 1
+          fi
+          echo "PASS: Post-deploy auth redirect verified ($STATUS_ADMIN)."
