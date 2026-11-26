@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { revalidateTag } from "next/cache";
 import { AuthorizationError, requireApiStaffPermission } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { categoryInputSchema } from "@/lib/validation/admin";
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
       new_values: { name: data.name },
     });
 
+    revalidateTag("menu-catalog", "max");
     return NextResponse.json({ ok: true, category: data }, { status: 201 });
   } catch (err) {
     if (err instanceof AuthorizationError) {

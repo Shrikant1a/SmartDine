@@ -9,9 +9,12 @@ import { getClientEnv } from "@/lib/env";
  * Respects Row Level Security for the authenticated user (or anon when unauthenticated).
  */
 export async function createSupabaseServerClient() {
-  // Opt out of prerendering — this client reads cookies (a Request-time API).
-  // The layout wraps callers in <Suspense> so the static shell is preserved.
-  await connection();
+  // Opt out of static prerendering in Server Component shells with Suspense
+  try {
+    await connection();
+  } catch {
+    // Route Handlers and non-Suspense scopes safely proceed
+  }
   const cookieStore = await cookies();
   const env = getClientEnv();
 

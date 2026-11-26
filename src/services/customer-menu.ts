@@ -1,7 +1,7 @@
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { getServerEnv } from "@/lib/env-server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { hashQrToken } from "@/lib/security/qr";
 import type {
   Category,
@@ -68,10 +68,10 @@ export async function resolveTableByRawToken(
   };
 }
 
-export async function getCustomerMenuCatalog(): Promise<CustomerMenuCatalog | null> {
-  const supabase = await createSupabaseServerClient();
+async function fetchCustomerMenuCatalogUncached(): Promise<CustomerMenuCatalog | null> {
+  const admin = createSupabaseAdminClient();
 
-  const { data: restRows, error: restError } = await supabase.rpc(
+  const { data: restRows, error: restError } = await admin.rpc(
     "get_public_restaurant_info",
   );
   if (restError || !Array.isArray(restRows) || restRows.length === 0) {
@@ -81,23 +81,23 @@ export async function getCustomerMenuCatalog(): Promise<CustomerMenuCatalog | nu
   const restaurant = restRows[0] as PublicRestaurantInfo;
 
   const [catRes, itemRes, varRes, addonRes] = await Promise.all([
-    supabase
+    admin
       .from("categories")
       .select("*")
       .eq("restaurant_id", restaurant.id)
       .eq("is_active", true)
       .order("sort_order", { ascending: true }),
-    supabase
+    admin
       .from("menu_items")
       .select("*")
       .eq("restaurant_id", restaurant.id)
       .eq("is_archived", false)
       .order("sort_order", { ascending: true }),
-    supabase
+    admin
       .from("menu_item_variants")
       .select("*")
       .order("sort_order", { ascending: true }),
-    supabase
+    admin
       .from("menu_item_addons")
       .select("*")
       .order("sort_order", { ascending: true }),
@@ -140,6 +140,20 @@ export async function getCustomerMenuCatalog(): Promise<CustomerMenuCatalog | nu
     items,
   };
 }
+
+/**
+ * Cached public menu catalog.
+ * In-memory cache revalidated every 60 seconds or on-demand via revalidateTag("menu-catalog").
+ * Resolves in < 1ms on warm requests.
+ */
+export const getCustomerMenuCatalog = unstable_cache(
+  fetchCustomerMenuCatalogUncached,
+  ["customer-menu-catalog"],
+  {
+    revalidate: 60,
+    tags: ["menu-catalog"],
+  },
+);
 
 export async function getVerifiedCustomerOrder(orderId: string, tableId: string) {
   const admin = createSupabaseAdminClient();

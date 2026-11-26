@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import {
   Flame,
@@ -32,6 +33,60 @@ interface CustomerMenuViewProps {
   catalog: CustomerMenuCatalog;
 }
 
+/**
+ * Isolated bottom bar: Only re-renders when cart contents change,
+ * preventing the 50+ menu item cards from unnecessarily re-rendering on every cart add/remove.
+ */
+const FloatingCartBar = memo(function FloatingCartBar({
+  tableNumber,
+}: {
+  tableNumber: string;
+}) {
+  const itemsInCart = useCartStore((s) => s.items);
+
+  const cartSummary = useMemo(() => {
+    let count = 0;
+    let subtotal = 0;
+    for (const entry of itemsInCart) {
+      count += entry.quantity;
+      const addonsSum = entry.addons.reduce((a, b) => a + b.price, 0);
+      subtotal += (entry.unitPrice + addonsSum) * entry.quantity;
+    }
+    return { count, subtotal };
+  }, [itemsInCart]);
+
+  if (cartSummary.count === 0) return null;
+
+  return (
+    <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur">
+      <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
+        <div className="flex items-center gap-2.5">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-600/15 text-amber-700">
+            <ShoppingBag className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">
+              {cartSummary.count} {cartSummary.count === 1 ? "item" : "items"} •{" "}
+              {formatINR(cartSummary.subtotal)}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              Table {tableNumber} • Plus applicable GST
+            </p>
+          </div>
+        </div>
+        <Link
+          href="/cart"
+          className={buttonVariants({
+            className: "bg-amber-600 text-white hover:bg-amber-700",
+          })}
+        >
+          View Cart →
+        </Link>
+      </div>
+    </div>
+  );
+});
+
 export function CustomerMenuView({
   qrToken,
   table,
@@ -41,20 +96,24 @@ export function CustomerMenuView({
   const [searchQuery, setSearchQuery] = useState("");
   const [vegOnly, setVegOnly] = useState(false);
   const [activeItem, setActiveItem] = useState<MenuItemWithOptions | null>(null);
-  const [sessionReady, setSessionReady] = useState(() => !qrToken);
+  const [sessionReady, setSessionReady] = useState(true);
 
-  const itemsInCart = useCartStore((s) => s.items);
+  // Atomic selectors: only select actions, avoiding broad store re-renders
   const setTableContext = useCartStore((s) => s.setTableContext);
   const addItem = useCartStore((s) => s.addItem);
 
-  // Bind signed HttpOnly table session cookie on mount when arriving via QR token
+  // Set table context and ensure session cookie in the background without blocking render
   useEffect(() => {
     const path = qrToken ? `/menu/${qrToken}` : "/menu";
     setTableContext(table.id, table.table_number, path);
     if (!qrToken) return;
 
-    let cancelled = false;
+    // Check if session cookie is already present in browser
+    if (typeof document !== "undefined" && document.cookie.includes("smartdine_table_session")) {
+      return;
+    }
 
+    let cancelled = false;
     fetch("/api/table/resolve", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -88,17 +147,6 @@ export function CustomerMenuView({
       return true;
     });
   }, [catalog.items, selectedCategory, vegOnly, searchQuery]);
-
-  const cartSummary = useMemo(() => {
-    let count = 0;
-    let subtotal = 0;
-    for (const entry of itemsInCart) {
-      count += entry.quantity;
-      const addonsSum = entry.addons.reduce((a, b) => a + b.price, 0);
-      subtotal += (entry.unitPrice + addonsSum) * entry.quantity;
-    }
-    return { count, subtotal };
-  }, [itemsInCart]);
 
   function handleQuickOrModal(item: MenuItemWithOptions) {
     if (!item.is_available || item.stock_qty === 0) return;
@@ -204,7 +252,7 @@ export function CustomerMenuView({
         </Card>
       ) : (
         <div className="grid gap-3.5 sm:grid-cols-2">
-          {filteredItems.map((item) => {
+          {filteredItems.map((item, idx) => {
             const soldOut = !item.is_available || item.stock_qty === 0;
             const startingPrice =
               item.variants.length > 0
@@ -221,11 +269,14 @@ export function CustomerMenuView({
                 <CardContent className="flex gap-3.5 p-3.5">
                   <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-lg bg-muted">
                     {item.image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         src={item.image_url}
                         alt={item.name}
-                        className="h-full w-full object-cover"
+                        fill
+                        sizes="96px"
+                        loading={idx < 4 ? "eager" : "lazy"}
+                        priority={idx < 4}
+                        className="object-cover"
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center text-muted-foreground/40">
@@ -303,35 +354,8 @@ export function CustomerMenuView({
         </div>
       )}
 
-      {/* Sticky Bottom Cart Bar */}
-      {cartSummary.count > 0 ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 p-3 backdrop-blur">
-          <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-600/15 text-amber-700">
-                <ShoppingBag className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-sm font-semibold">
-                  {cartSummary.count} {cartSummary.count === 1 ? "item" : "items"} •{" "}
-                  {formatINR(cartSummary.subtotal)}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Table {table.table_number} • Plus applicable GST
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/cart"
-              className={buttonVariants({
-                className: "bg-amber-600 text-white hover:bg-amber-700",
-              })}
-            >
-              View Cart →
-            </Link>
-          </div>
-        </div>
-      ) : null}
+      {/* Isolated Sticky Bottom Cart Bar */}
+      <FloatingCartBar tableNumber={table.table_number} />
 
       <FoodDetailDialog
         item={activeItem}

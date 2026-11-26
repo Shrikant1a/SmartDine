@@ -40,9 +40,6 @@ export default function HomePage() {
             <Link href="/bootstrap" className={buttonVariants({ variant: "outline" })}>
               Initial Owner Setup
             </Link>
-            <Link href="/api/health" className={buttonVariants({ variant: "ghost" })}>
-              System Health Check
-            </Link>
           </div>
         </div>
 

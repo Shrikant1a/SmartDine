@@ -29,10 +29,10 @@ async function TableMenuLoader({
   let table = null;
   let catalog = null;
   try {
-    table = await resolveTableByRawToken(parsed.data);
-    if (table) {
-      catalog = await getCustomerMenuCatalog();
-    }
+    [table, catalog] = await Promise.all([
+      resolveTableByRawToken(parsed.data),
+      getCustomerMenuCatalog(),
+    ]);
   } catch {
     return (
       <ErrorState

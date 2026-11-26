@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { revalidateTag } from "next/cache";
 import { AuthorizationError, requireApiStaffPermission } from "@/lib/auth/session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { uuidSchema } from "@/lib/validation/common";
@@ -62,6 +63,7 @@ export async function PATCH(
         new_values: { is_available: parsedToggle.data.isAvailable },
       });
 
+      revalidateTag("menu-catalog", "max");
       return NextResponse.json({ ok: true, item: updated });
     }
 
@@ -140,6 +142,7 @@ export async function PATCH(
       new_values: { name: updated.name, base_price: updated.base_price },
     });
 
+    revalidateTag("menu-catalog", "max");
     return NextResponse.json({ ok: true, item: updated });
   } catch (err) {
     if (err instanceof AuthorizationError) {
@@ -181,6 +184,7 @@ export async function DELETE(
       entity_id: parsedId.data,
     });
 
+    revalidateTag("menu-catalog", "max");
     return NextResponse.json({ ok: true });
   } catch (err) {
     if (err instanceof AuthorizationError) {

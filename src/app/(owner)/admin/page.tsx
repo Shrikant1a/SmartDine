@@ -1,10 +1,22 @@
 import { Suspense } from "react";
+import dynamic from "next/dynamic";
 import { requireStaffRole } from "@/lib/auth/session";
 import { getAdminOverviewData } from "@/services/admin-server";
 import { formatINR } from "@/services/pricing";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { OverviewCharts } from "@/components/dashboard/OverviewCharts";
 import { PageShellSkeleton } from "@/components/shared/PageShellSkeleton";
+
+const OverviewCharts = dynamic(
+  () => import("@/components/dashboard/OverviewCharts").then((m) => m.OverviewCharts),
+  {
+    loading: () => (
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="h-80 w-full animate-pulse rounded-xl border bg-card/60 p-6" />
+        <div className="h-80 w-full animate-pulse rounded-xl border bg-card/60 p-6" />
+      </div>
+    ),
+  },
+);
 
 async function OverviewContent() {
   const session = await requireStaffRole(["owner", "manager"]);
