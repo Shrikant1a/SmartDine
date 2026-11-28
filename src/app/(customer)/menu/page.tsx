@@ -4,6 +4,7 @@ import { QrCode } from "lucide-react";
 import { getVerifiedTableSession } from "@/lib/security/table-session";
 import { getCustomerMenuCatalog } from "@/services/customer-menu";
 import { CustomerMenuView } from "@/components/customer/CustomerMenuView";
+import { CustomerMenuLoadingFallback } from "@/components/customer/CustomerMenuLoadingFallback";
 import { EmptyState } from "@/components/shared/EmptyState";
 
 async function MenuTokenOrSession({
@@ -59,7 +60,7 @@ export default function CustomerMenuIndexPage({
   searchParams: Promise<{ table_token?: string }>;
 }) {
   return (
-    <Suspense fallback={<div className="h-48 animate-pulse rounded-xl bg-muted" />}>
+    <Suspense fallback={<CustomerMenuLoadingFallback />}>
       <MenuTokenOrSession searchParams={searchParams} />
     </Suspense>
   );

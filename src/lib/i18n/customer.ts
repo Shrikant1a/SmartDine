@@ -67,6 +67,10 @@ export interface CustomerTranslations {
   billSettledDesc: string;
   startNewOrder: string;
   payOnline: string;
+  openingMenu: string;
+  welcomeToTable: string;
+  tapToEnter: string;
+  digitalMenu: string;
 }
 
 export const CUSTOMER_TRANSLATIONS: Record<Language, CustomerTranslations> = {
@@ -137,6 +141,10 @@ export const CUSTOMER_TRANSLATIONS: Record<Language, CustomerTranslations> = {
     billSettledDesc: "Thank you for dining with us! All orders for this table have been paid and the QR session is clear.",
     startNewOrder: "Start New Order",
     payOnline: "Pay Online (UPI / Card)",
+    openingMenu: "Opening Digital Menu...",
+    welcomeToTable: "Welcome to Table",
+    tapToEnter: "Tap anywhere to view menu",
+    digitalMenu: "Digital Menu",
   },
   mr: {
     menu: "मेनू",
@@ -205,5 +213,9 @@ export const CUSTOMER_TRANSLATIONS: Record<Language, CustomerTranslations> = {
     billSettledDesc: "आमच्याकडे जेवणाचा आनंद घेतल्याबद्दल धन्यवाद! या टेबलचे सर्व बिल भरले आहे आणि इतिहास क्लिअर झाला आहे.",
     startNewOrder: "नवीन ऑर्डर सुरू करा",
     payOnline: "ऑनलाइन पैसे द्या (UPI / कार्ड)",
+    openingMenu: "डिजिटल मेनू उघडत आहे...",
+    welcomeToTable: "टेबलवर आपले स्वागत आहे",
+    tapToEnter: "मेनू पाहण्यासाठी कुठेही टॅप करा",
+    digitalMenu: "डिजिटल मेनू",
   },
 };

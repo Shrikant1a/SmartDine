@@ -6,6 +6,7 @@ import {
   resolveTableByRawToken,
 } from "@/services/customer-menu";
 import { CustomerMenuView } from "@/components/customer/CustomerMenuView";
+import { CustomerMenuLoadingFallback } from "@/components/customer/CustomerMenuLoadingFallback";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { EmptyState } from "@/components/shared/EmptyState";
 
@@ -71,7 +72,7 @@ export default function CustomerMenuByTokenPage({
   params: Promise<{ token: string }>;
 }) {
   return (
-    <Suspense fallback={<div className="h-96 animate-pulse rounded-xl bg-muted" />}>
+    <Suspense fallback={<CustomerMenuLoadingFallback />}>
       <TableMenuLoader params={params} />
     </Suspense>
   );

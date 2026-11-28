@@ -18,6 +18,7 @@ import { WifiDialogButton } from "@/components/customer/WifiDialogButton";
 import { CallWaiterButton } from "@/components/customer/CallWaiterButton";
 import { FoodDetailDialog } from "@/components/customer/FoodDetailDialog";
 import { CustomerBottomNav, type CustomerTab } from "@/components/customer/CustomerBottomNav";
+import { CustomerMenuSplash } from "@/components/customer/CustomerMenuSplash";
 import { CartTabView } from "@/components/customer/tabs/CartTabView";
 import { TrackTabView } from "@/components/customer/tabs/TrackTabView";
 import { BillTabView } from "@/components/customer/tabs/BillTabView";
@@ -43,6 +44,7 @@ export function CustomerMenuView({
   table,
   catalog,
 }: CustomerMenuViewProps) {
+  const [splashFinished, setSplashFinished] = useState(false);
   const [activeTab, setActiveTab] = useState<CustomerTab>("menu");
   const [lang, setLang] = useState<Language>(() => {
     if (typeof window !== "undefined") {
@@ -126,7 +128,24 @@ export function CustomerMenuView({
   }
 
   return (
-    <div className="space-y-5 pb-28 sm:pb-32">
+    <>
+      {!splashFinished && (
+        <CustomerMenuSplash
+          restaurantName={catalog.restaurant.name}
+          logoUrl={catalog.restaurant.logo_url}
+          tableNumber={table.table_number}
+          lang={lang}
+          onFinished={() => setSplashFinished(true)}
+        />
+      )}
+
+      <div
+        className={`space-y-5 pb-28 sm:pb-32 transition-all duration-700 ease-out ${
+          splashFinished
+            ? "opacity-100 translate-y-0"
+            : "opacity-0 translate-y-2 pointer-events-none"
+        }`}
+      >
       {/* Restaurant Banner & Locked Table Bar (Always visible at top) */}
       <Card className="border-amber-500/25 bg-gradient-to-br from-amber-50/80 via-card to-card dark:from-amber-950/20">
         <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -401,5 +420,6 @@ export function CustomerMenuView({
         lang={lang}
       />
     </div>
+    </>
   );
 }
