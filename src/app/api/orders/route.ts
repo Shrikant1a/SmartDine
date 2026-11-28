@@ -138,14 +138,48 @@ export async function GET(request: NextRequest) {
       )
       .eq("table_id", tableId)
       .order("created_at", { ascending: false })
-      .limit(15);
+      .limit(20);
 
     if (error) {
       return NextResponse.json({ error: "Failed to load orders" }, { status: 500 });
     }
 
-    const orders = (data ?? []) as Order[];
-    const orderIds = orders.map((o) => o.id);
+    const allTableOrders = (data ?? []) as Order[];
+    const now = Date.now();
+
+    // Determine active orders for the customer QR view:
+    // 1. In-kitchen progress (placed, accepted, preparing, ready) -> always visible to track.
+    // 2. Served orders awaiting bill payment (payment_status: pending) -> visible to bill and pay.
+    // 3. Recently cancelled orders (< 10 mins) -> visible to inform customer of cancellation reason.
+    // 4. Completed orders that are BOTH served AND paid are fully settled -> CLEARED from QR!
+    // All historical and permanent data remains intact in Supabase for the Admin Panel.
+    const activeOrders = allTableOrders.filter((o) => {
+      if (o.status === "served" && o.payment_status === "paid") {
+        return false;
+      }
+      if (o.status === "cancelled") {
+        const ageMinutes = (now - new Date(o.created_at).getTime()) / (1000 * 60);
+        return ageMinutes <= 10;
+      }
+      if (["placed", "accepted", "preparing", "ready"].includes(o.status)) {
+        return true;
+      }
+      if (o.status === "served" && o.payment_status === "pending") {
+        return true;
+      }
+      return false;
+    });
+
+    // Check if the table's most recent order was settled (paid) recently (< 5 minutes ago)
+    const recentlySettled =
+      activeOrders.length === 0 &&
+      allTableOrders.some(
+        (o) =>
+          o.payment_status === "paid" &&
+          (now - new Date(o.updated_at || o.created_at).getTime()) / (1000 * 60) <= 5,
+      );
+
+    const orderIds = activeOrders.map((o) => o.id);
     const itemsByOrder = new Map<string, OrderItem[]>();
 
     if (orderIds.length > 0) {
@@ -162,7 +196,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const enrichedOrders = orders.map((o) => ({
+    const enrichedOrders = activeOrders.map((o) => ({
       ...o,
       subtotal: Number(o.subtotal),
       tax_amount: Number(o.tax_amount),
@@ -174,6 +208,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       tableNumber,
       orders: enrichedOrders,
+      recentlySettled,
     });
   } catch (err) {
     console.error("[api/orders GET] Error:", err);

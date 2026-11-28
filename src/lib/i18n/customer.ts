@@ -63,6 +63,10 @@ export interface CustomerTranslations {
   refresh: string;
   liveStatus: string;
   close: string;
+  billSettled: string;
+  billSettledDesc: string;
+  startNewOrder: string;
+  payOnline: string;
 }
 
 export const CUSTOMER_TRANSLATIONS: Record<Language, CustomerTranslations> = {
@@ -129,6 +133,10 @@ export const CUSTOMER_TRANSLATIONS: Record<Language, CustomerTranslations> = {
     refresh: "Refresh",
     liveStatus: "Live Updates",
     close: "Close",
+    billSettled: "Bill Settled Successfully",
+    billSettledDesc: "Thank you for dining with us! All orders for this table have been paid and the QR session is clear.",
+    startNewOrder: "Start New Order",
+    payOnline: "Pay Online (UPI / Card)",
   },
   mr: {
     menu: "मेनू",
@@ -193,5 +201,9 @@ export const CUSTOMER_TRANSLATIONS: Record<Language, CustomerTranslations> = {
     refresh: "रिफ्रेश",
     liveStatus: "थेट अपडेट",
     close: "बंद करा",
+    billSettled: "बिल यशस्वीरित्या भरले गेले",
+    billSettledDesc: "आमच्याकडे जेवणाचा आनंद घेतल्याबद्दल धन्यवाद! या टेबलचे सर्व बिल भरले आहे आणि इतिहास क्लिअर झाला आहे.",
+    startNewOrder: "नवीन ऑर्डर सुरू करा",
+    payOnline: "ऑनलाइन पैसे द्या (UPI / कार्ड)",
   },
 };

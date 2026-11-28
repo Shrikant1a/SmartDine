@@ -38,6 +38,7 @@ export function BillTabView({
   const [refreshing, setRefreshing] = useState(false);
   const [requestingBill, setRequestingBill] = useState(false);
   const [billRequested, setBillRequested] = useState(false);
+  const [recentlySettled, setRecentlySettled] = useState(false);
 
   useEffect(() => {
     let ignore = false;
@@ -49,8 +50,13 @@ export function BillTabView({
       fetch(url, { cache: "no-store" })
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
-          if (!ignore && data && Array.isArray(data.orders)) {
-            setOrders(data.orders);
+          if (!ignore && data) {
+            if (Array.isArray(data.orders)) {
+              setOrders(data.orders);
+            }
+            if (typeof data.recentlySettled === "boolean") {
+              setRecentlySettled(data.recentlySettled);
+            }
           }
         })
         .catch(() => {})
@@ -78,8 +84,13 @@ export function BillTabView({
       const res = await fetch(url, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
-        if (Array.isArray(data.orders)) {
-          setOrders(data.orders);
+        if (data) {
+          if (Array.isArray(data.orders)) {
+            setOrders(data.orders);
+          }
+          if (typeof data.recentlySettled === "boolean") {
+            setRecentlySettled(data.recentlySettled);
+          }
         }
       }
     } catch {
@@ -180,6 +191,32 @@ export function BillTabView({
   }
 
   if (orders.length === 0 || aggregatedItems.length === 0) {
+    if (recentlySettled) {
+      return (
+        <div className="flex flex-col items-center justify-center py-12 text-center animate-in fade-in-50 duration-200">
+          <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-500/10 text-emerald-600">
+            <CheckCircle2 className="h-8 w-8" />
+          </div>
+          <Badge className="mb-3 bg-emerald-600 text-white">
+            {t.paid}
+          </Badge>
+          <h2 className="text-xl font-bold tracking-tight">
+            {t.billSettled}
+          </h2>
+          <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+            {t.billSettledDesc}
+          </p>
+          <Button
+            type="button"
+            onClick={onExploreMenu}
+            className="mt-6 bg-emerald-600 text-white hover:bg-emerald-700 font-semibold"
+          >
+            {t.startNewOrder}
+          </Button>
+        </div>
+      );
+    }
+
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
         <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
@@ -304,9 +341,25 @@ export function BillTabView({
           {billRequested ? t.billRequested : t.requestBill}
         </Button>
       ) : (
-        <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-500/10 p-4 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-          <CheckCircle2 className="h-5 w-5" />
-          <span>All orders for Table {tableNumber} have been paid. Thank you!</span>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-emerald-500/10 p-5 text-center border border-emerald-500/20">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
+            <CheckCircle2 className="h-6 w-6" />
+          </div>
+          <div>
+            <h3 className="font-bold text-sm text-foreground">
+              {t.billSettled}
+            </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {t.billSettledDesc}
+            </p>
+          </div>
+          <Button
+            type="button"
+            onClick={onExploreMenu}
+            className="mt-1 bg-emerald-600 text-white hover:bg-emerald-700 font-semibold text-xs"
+          >
+            {t.startNewOrder}
+          </Button>
         </div>
       )}
     </div>
