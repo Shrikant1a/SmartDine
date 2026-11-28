@@ -4,6 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  BellRing,
+  ChefHat,
   ClipboardList,
   FolderTree,
   LayoutDashboard,
@@ -19,6 +21,8 @@ import type { StaffRole } from "@/constants/roles";
 const NAV_ITEMS = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, ownerOnly: false },
   { href: "/admin/orders", label: "Orders", icon: ClipboardList, ownerOnly: false },
+  { href: "/admin/kitchen", label: "Kitchen Display", icon: ChefHat, ownerOnly: false },
+  { href: "/admin/waiter", label: "Waiter Portal", icon: BellRing, ownerOnly: false },
   { href: "/admin/menu", label: "Menu Items", icon: Utensils, ownerOnly: false },
   { href: "/admin/categories", label: "Categories", icon: FolderTree, ownerOnly: false },
   { href: "/admin/tables", label: "Tables & QR", icon: QrCode, ownerOnly: false },

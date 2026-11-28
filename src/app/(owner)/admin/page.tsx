@@ -1,5 +1,7 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import dynamic from "next/dynamic";
+import { ArrowRight, BellRing, ChefHat } from "lucide-react";
 import { requireStaffRole } from "@/lib/auth/session";
 import { getAdminOverviewData } from "@/services/admin-server";
 import { formatINR } from "@/services/pricing";
@@ -47,6 +49,45 @@ async function OverviewContent() {
             <CardContent className="text-xs text-muted-foreground">{kpi.sub}</CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Quick Access to Live Operations */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Link
+          href="/admin/kitchen"
+          className="flex items-center justify-between rounded-xl border bg-card p-4 transition-colors hover:border-amber-600/50 hover:bg-muted/40 shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-sky-500/10 text-sky-600 dark:text-sky-400">
+              <ChefHat className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">Kitchen Display System (KDS)</p>
+              <p className="text-xs text-muted-foreground">
+                Live cooking orders, preparation times &amp; sound alerts
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+
+        <Link
+          href="/admin/waiter"
+          className="flex items-center justify-between rounded-xl border bg-card p-4 transition-colors hover:border-amber-600/50 hover:bg-muted/40 shadow-sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+              <BellRing className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">Waiter Service Portal</p>
+              <p className="text-xs text-muted-foreground">
+                Table assistance calls, ready dishes &amp; cash bills
+              </p>
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
       </div>
 
       <OverviewCharts analytics={analytics} />
