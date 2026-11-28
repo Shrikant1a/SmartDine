@@ -196,10 +196,16 @@ export function TrackTabView({
                         ? "bg-emerald-600 text-white hover:bg-emerald-600"
                         : order.status === "preparing"
                         ? "bg-blue-600 text-white hover:bg-blue-600"
+                        : order.status === "new"
+                        ? "bg-amber-600 text-white hover:bg-amber-600"
                         : ""
                     }
                   >
-                    {isCancelled ? t.cancelled : t[order.status as keyof typeof t] || order.status}
+                    {isCancelled
+                      ? t.cancelled
+                      : order.status === "new"
+                      ? t.orderPlaced
+                      : t[order.status as keyof typeof t] || order.status}
                   </Badge>
                 </div>
               </CardHeader>

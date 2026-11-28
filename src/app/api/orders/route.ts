@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
     const now = Date.now();
 
     // Determine active orders for the customer QR view:
-    // 1. In-kitchen progress (placed, accepted, preparing, ready) -> always visible to track.
+    // 1. In-kitchen progress (new, preparing, ready) -> always visible to track immediately upon order placement!
     // 2. Served orders awaiting bill payment (payment_status: pending) -> visible to bill and pay.
     // 3. Recently cancelled orders (< 10 mins) -> visible to inform customer of cancellation reason.
     // 4. Completed orders that are BOTH served AND paid are fully settled -> CLEARED from QR!
@@ -161,7 +161,7 @@ export async function GET(request: NextRequest) {
         const ageMinutes = (now - new Date(o.created_at).getTime()) / (1000 * 60);
         return ageMinutes <= 10;
       }
-      if (["placed", "accepted", "preparing", "ready"].includes(o.status)) {
+      if (["new", "preparing", "ready"].includes(o.status)) {
         return true;
       }
       if (o.status === "served" && o.payment_status === "pending") {
