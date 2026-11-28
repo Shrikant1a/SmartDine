@@ -4,6 +4,7 @@ import { sanitizedTextSchema } from "@/lib/validation/common";
 
 export const createWaiterCallSchema = z.object({
   note: sanitizedTextSchema(160).optional(),
+  token: z.string().optional(),
 });
 
 export const updateWaiterCallSchema = z.object({

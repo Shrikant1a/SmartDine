@@ -4,6 +4,8 @@ import { createOrderSchema } from "@/lib/validation/order";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { checkRateLimit } from "@/lib/security/rate-limit";
 import { notifyNewOrderAndStock } from "@/services/notifications";
+import { resolveTableByRawToken } from "@/services/customer-menu";
+import type { Order, OrderItem } from "@/types/database";
 
 export async function POST(request: NextRequest) {
   try {
@@ -102,28 +104,76 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getVerifiedTableSession();
-    if (!session) {
+    let tableId: string | null = null;
+    let tableNumber: string = "Table";
+
+    const token = request.nextUrl.searchParams.get("token");
+    if (token) {
+      const resolved = await resolveTableByRawToken(token);
+      if (resolved) {
+        tableId = resolved.id;
+        tableNumber = resolved.table_number;
+      }
+    }
+
+    if (!tableId) {
+      const session = await getVerifiedTableSession();
+      if (session) {
+        tableId = session.tableId;
+        tableNumber = session.tableNumber;
+      }
+    }
+
+    if (!tableId) {
       return NextResponse.json({ error: "No active table session" }, { status: 401 });
     }
 
     const admin = createSupabaseAdminClient();
     const { data, error } = await admin
       .from("orders")
-      .select("id, order_number, status, payment_mode, payment_status, total_amount, created_at")
-      .eq("table_id", session.tableId)
+      .select(
+        "id, restaurant_id, table_id, order_number, status, payment_mode, payment_status, subtotal, tax_amount, service_charge, total_amount, special_instructions, accepted_at, ready_at, served_at, cancelled_at, cancel_reason, created_at, updated_at",
+      )
+      .eq("table_id", tableId)
       .order("created_at", { ascending: false })
-      .limit(10);
+      .limit(15);
 
     if (error) {
       return NextResponse.json({ error: "Failed to load orders" }, { status: 500 });
     }
 
+    const orders = (data ?? []) as Order[];
+    const orderIds = orders.map((o) => o.id);
+    const itemsByOrder = new Map<string, OrderItem[]>();
+
+    if (orderIds.length > 0) {
+      const { data: itemsData } = await admin
+        .from("order_items")
+        .select("*")
+        .in("order_id", orderIds)
+        .order("created_at", { ascending: true });
+
+      for (const item of (itemsData ?? []) as OrderItem[]) {
+        const arr = itemsByOrder.get(item.order_id) ?? [];
+        arr.push(item);
+        itemsByOrder.set(item.order_id, arr);
+      }
+    }
+
+    const enrichedOrders = orders.map((o) => ({
+      ...o,
+      subtotal: Number(o.subtotal),
+      tax_amount: Number(o.tax_amount),
+      service_charge: Number(o.service_charge),
+      total_amount: Number(o.total_amount),
+      items: itemsByOrder.get(o.id) ?? [],
+    }));
+
     return NextResponse.json({
-      tableNumber: session.tableNumber,
-      orders: data ?? [],
+      tableNumber,
+      orders: enrichedOrders,
     });
   } catch (err) {
     console.error("[api/orders GET] Error:", err);

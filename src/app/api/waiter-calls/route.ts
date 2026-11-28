@@ -3,32 +3,37 @@ import { getVerifiedTableSession } from "@/lib/security/table-session";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createWaiterCallSchema } from "@/lib/validation/waiter";
 import { evaluateWaiterCallCooldown } from "@/services/waiter";
-import { checkRateLimit } from "@/lib/security/rate-limit";
+import { resolveTableByRawToken } from "@/services/customer-menu";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getVerifiedTableSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: "Please scan your table QR code before calling a waiter." },
-        { status: 401 },
-      );
-    }
-
-    const rate = checkRateLimit(`waiter-call:${session.tableId}`, 6, 10 * 60 * 1000);
-    if (!rate.allowed) {
-      return NextResponse.json(
-        { error: `Waiter call limit reached. Try again in ${rate.retryAfterSeconds}s.` },
-        { status: 429, headers: { "Retry-After": String(rate.retryAfterSeconds) } },
-      );
-    }
-
     const body = await request.json().catch(() => ({}));
     const parsed = createWaiterCallSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json(
         { error: parsed.error.issues[0]?.message ?? "Invalid request" },
         { status: 400 },
+      );
+    }
+
+    let session = await getVerifiedTableSession();
+    if (!session && parsed.data.token) {
+      const resolved = await resolveTableByRawToken(parsed.data.token);
+      if (resolved) {
+        session = {
+          tableId: resolved.id,
+          restaurantId: resolved.restaurant_id,
+          tableNumber: resolved.table_number,
+          tokenVersion: resolved.token_version,
+          exp: Math.floor(Date.now() / 1000) + 3600 * 4,
+        };
+      }
+    }
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Please scan your table QR code before calling a waiter." },
+        { status: 401 },
       );
     }
 
